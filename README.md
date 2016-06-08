@@ -5,19 +5,24 @@ Features
 - Works well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 
-Build and install
+
+------------------
+Building
 ------------------
 
-You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
-Clone this repository and cd in the resulting directory.
+1. Install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). 
+
+2. If you want to make a cia you also have to include [makerom](https://github.com/profi200/Project_CTR/releases) in your `[directories_to_devkitPro]/devkitARM/bin`.
+
+3. Clone this repository and cd in the resulting directory.
 
     make
 
-This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. If you want to build a cia please look at [this thread on how to convert the `ftpd.elf` to a cia](https://gbatemp.net/threads/converting-elf-to-cia-how.399353/)
+ This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. 
 
-The command to build a cia with makerom is
+4. To build a cia with makerom run this command from the same directory
 
-    makerom -f cia -o ftpd.cia -DAPP_ENCRYPTED=false -rsf /meta/fptd.rsf -target t -exefslogo -elf ftpd.elf -icon /meta/icon.icn -banner /meta/banner.bnr
+    makerom -f cia -o ftpd.cia -DAPP_ENCRYPTED=false -rsf meta/ftpd.rsf -target t -exefslogo -elf ftpd.elf -icon meta/icon.icn -banner meta/banner.bnr
 
 Supported Commands
 ------------------
