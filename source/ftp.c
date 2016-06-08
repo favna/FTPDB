@@ -1567,7 +1567,6 @@ ftp_init(void)
 #ifdef _3DS
 soc_fail:
   free(SOCU_buffer);
-  SOCU_buffer = NULL;
 
 memalign_fail:
 #ifdef ENABLE_LOGGING
@@ -1578,6 +1577,7 @@ ftruncate_fail:
 log_fail:
 #endif
   return -1;
+
 #endif
 }
 
@@ -1601,14 +1601,10 @@ ftp_exit(void)
   /* deinitialize SOC service */
   console_render();
   console_print(CYAN "Waiting for socExit()...\n" RESET);
-
-  if(SOCU_buffer != NULL)
-  {
-    ret = socExit();
-    if(ret != 0)
-      console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
-    free(SOCU_buffer);
-  }
+  ret = socExit();
+  if(ret != 0)
+    console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
+  free(SOCU_buffer);
 
 #ifdef ENABLE_LOGGING
   /* close log file */
@@ -1928,7 +1924,7 @@ list_transfer(ftp_session_t *session)
         /* copy to the session buffer to send */
         session->buffersize =
             sprintf(session->buffer,
-                    "%c%c%c%c%c%c%c%c%c%c 1 3DS 3DS %lld ",
+                    "%crwxrwxrwx 1 3DS 3DS %lld ",
                     S_ISREG(st.st_mode)  ? '-' :
                     S_ISDIR(st.st_mode)  ? 'd' :
                     S_ISLNK(st.st_mode)  ? 'l' :
@@ -1936,15 +1932,6 @@ list_transfer(ftp_session_t *session)
                     S_ISBLK(st.st_mode)  ? 'b' :
                     S_ISFIFO(st.st_mode) ? 'p' :
                     S_ISSOCK(st.st_mode) ? 's' : '?',
-                    st.st_mode & S_IRUSR ? 'r' : '-',
-                    st.st_mode & S_IWUSR ? 'w' : '-',
-                    st.st_mode & S_IXUSR ? 'x' : '-',
-                    st.st_mode & S_IRGRP ? 'r' : '-',
-                    st.st_mode & S_IWGRP ? 'w' : '-',
-                    st.st_mode & S_IXGRP ? 'x' : '-',
-                    st.st_mode & S_IROTH ? 'r' : '-',
-                    st.st_mode & S_IWOTH ? 'w' : '-',
-                    st.st_mode & S_IXOTH ? 'x' : '-',
                     (signed long long)st.st_size);
 
         t_mtime = mtime;

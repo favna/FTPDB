@@ -1,14 +1,9 @@
-ftpd
-====
-
-FTP Server for 3DS.
+FTPD is a FTP Server for 3DS.
 
 Features
 --------
-- Appears to work well with a variety of clients.
-- Also compiles for Linux.
+- Works well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
-- Cutting-edge graphics.
 
 Build and install
 ------------------
@@ -18,7 +13,11 @@ Clone this repository and cd in the resulting directory.
 
     make
 
-Copy the `ftpd.3dsx` file to your SD card and launch it.
+This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. If you want to build a cia please look at [this thread on how to convert the `ftpd.elf` to a cia](https://gbatemp.net/threads/converting-elf-to-cia-how.399353/)
+
+The command to build a cia with makerom is
+
+    makerom -f cia -o ftpd.cia -DAPP_ENCRYPTED=false -rsf /meta/fptd.rsf -target t -exefslogo -elf ftpd.elf -icon /meta/icon.icn -banner /meta/banner.bnr
 
 Supported Commands
 ------------------
@@ -59,8 +58,3 @@ Supported Commands
 - XMKD
 - XPWD
 - XRMD
-
-Planned Commands
-----------------
-
-- STOU
