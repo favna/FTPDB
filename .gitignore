@@ -1,9 +1,2 @@
 build/
-build.linux/
-buildtools/
 output/
-ftpd
-*.3dsx
-*.smdh
-*.elf
-*.cia
