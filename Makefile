@@ -14,7 +14,6 @@ BUILD    := build
 SOURCES  := source
 DATA     := data
 INCLUDES := include
-ROMFS    :=
 
 APP_TITLE       := FTPD
 APP_DESCRIPTION := 3DS FTP Server
@@ -110,8 +109,6 @@ ifneq ($(ROMFS),)
 	export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all
-
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -132,7 +129,6 @@ DEPENDS := $(OFILES:.o=.d)
 # main targets
 #---------------------------------------------------------------------------------
 ifeq ($(strip $(NO_SMDH)),)
-.PHONY: all
 all	:	$(OUTPUT).3dsx $(OUTPUT).smdh
 $(OUTPUT).smdh : $(TOPDIR)/Makefile
 $(OUTPUT).3dsx: $(OUTPUT).smdh
