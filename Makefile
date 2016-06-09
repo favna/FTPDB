@@ -27,7 +27,7 @@ EXTRA_OUTPUT_FILES :=
 LIBRARY_DIRS := $(DEVKITPRO)/citrus $(DEVKITPRO)/libctru
 LIBRARIES := ctru m
 
-BUILD_FLAGS := -DSTATUS_STRING='"ftpd v2.3"' -DLIBKHAX_AS_LIB -DVERSION_STRING="\"`git describe --tags --abbrev=0`\""
+BUILD_FLAGS := -DSTATUS_STRING='"FTP3DS"' -DLIBKHAX_AS_LIB -DVERSION_STRING="\"`git describe --tags --abbrev=0`\""
 RUN_FLAGS :=
 
 #OUTPUT_ZIP_FILE := $(OUTPUT_DIR)/$(NAME)-$(shell date +'%Y%m%d-%H%M%S').zip
