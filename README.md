@@ -1,26 +1,22 @@
-FTPD is a FTP Server for 3DS.
-
 Features
 --------
 - Works well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 
-
-------------------
 Building
 ------------------
 
-1. Install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). 
+Install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). 
 
-2. If you want to make a cia you also have to include [makerom](https://github.com/profi200/Project_CTR/releases) in your `[directories_to_devkitPro]/devkitARM/bin`.
+If you want to make a cia you also have to include [makerom](https://github.com/profi200/Project_CTR/releases) in your `[directories_to_devkitPro]/devkitARM/bin`.
 
-3. Clone this repository and cd in the resulting directory.
+Clone this repository and cd in the resulting directory. Then run the following command:
 
     make
+    
+This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. 
 
- This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. 
-
-4. To build a cia with makerom run this command from the same directory
+To build a cia with makerom run this command from the same directory
 
     makerom -f cia -o ftpd.cia -DAPP_ENCRYPTED=false -rsf meta/ftpd.rsf -target t -exefslogo -elf ftpd.elf -icon meta/icon.icn -banner meta/banner.bnr
 
