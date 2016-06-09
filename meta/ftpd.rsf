@@ -1,7 +1,7 @@
 BasicInfo:
   Title                   : "ftpd"
   ProductCode             : "HBL-A-FTPD"
-  Logo                    : Homebrew # Nintendo / Licensed / Distributed / iQue / iQueForSystem
+  Logo                    : Nintendo # Nintendo / Licensed / Distributed / iQue / iQueForSystem
 
 RomFs:
   $(APP_ROMFS)
