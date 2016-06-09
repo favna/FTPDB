@@ -8,17 +8,11 @@ Building
 
 Install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). 
 
-If you want to make a cia you also have to include [makerom](https://github.com/profi200/Project_CTR/releases) in your `[directories_to_devkitPro]/devkitARM/bin`.
-
 Clone this repository and cd in the resulting directory. Then run the following command:
 
     make
     
-This will create `ftpd.3dsx` and `ftpd.smdh`. Copy these into `/3ds/ftpd/` for usage from the homebrew menu. 
-
-To build a cia with makerom run this command from the same directory
-
-    makerom -f cia -o ftpd.cia -DAPP_ENCRYPTED=false -rsf meta/ftpd.rsf -target t -exefslogo -elf ftpd.elf -icon meta/icon.icn -banner meta/banner.bnr
+This will create the `/output` folder with all required files.
 
 Supported Commands
 ------------------
