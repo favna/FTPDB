@@ -1,2 +1,4 @@
 build/
-output/
+output/3ds/
+output/FTP3DS.3ds
+output/FTP3DS.elf
