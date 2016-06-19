@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <malloc.h>
+#include <math.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -19,6 +20,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <time.h>
 #include <unistd.h>
 #ifdef _3DS
@@ -193,6 +195,10 @@ static ftp_command_t ftp_commands[] =
 };
 /*! number of ftp commands */
 static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[0]);
+
+#ifdef _3DS
+static void update_free_space(void);
+#endif
 
 /*! compare ftp command descriptors
  *
@@ -581,6 +587,7 @@ ftp_session_write_file(ftp_session_t *session)
   /* adjust file position */
   session->filepos += rc;
 
+  update_free_space();
   return rc;
 }
 
@@ -1398,6 +1405,92 @@ ftp_session_poll(ftp_session_t *session)
   return ftp_session_destroy(session);
 }
 
+#ifdef _3DS
+/* Update free space in status bar */
+static void
+update_free_space(void)
+{
+#define KiB (1024.0)
+#define MiB (1024.0*KiB)
+#define GiB (1024.0*MiB)
+  char           buffer[16];
+  struct statvfs st;
+  double         bytes_free;
+  int            rc, len;
+
+  rc = statvfs("sdmc:/", &st);
+  if(rc != 0)
+    console_print(RED "statvfs: %d %s\n" RESET, errno, strerror(errno));
+  else
+  {
+    bytes_free = (double)st.f_bsize * st.f_bfree;
+
+    if     (bytes_free < 1000.0)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfB", bytes_free);
+    else if(bytes_free < 10.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfKiB", floor((bytes_free*100.0)/KiB)/100.0);
+    else if(bytes_free < 100.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfKiB", floor((bytes_free*10.0)/KiB)/10.0);
+    else if(bytes_free < 1000.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfKiB", floor(bytes_free/KiB));
+    else if(bytes_free < 10.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfMiB", floor((bytes_free*100.0)/MiB)/100.0);
+    else if(bytes_free < 100.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfMiB", floor((bytes_free*10.0)/MiB)/10.0);
+    else if(bytes_free < 1000.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfMiB", floor(bytes_free/MiB));
+    else if(bytes_free < 10.0*GiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfGiB", floor((bytes_free*100.0)/GiB)/100.0);
+    else if(bytes_free < 100.0*GiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfGiB", floor((bytes_free*10.0)/GiB)/10.0);
+    else
+      len = snprintf(buffer, sizeof(buffer), "%.0lfGiB", floor(bytes_free/GiB));
+
+    console_set_status("\x1b[0;%dH" GREEN "%s", 50-len, buffer);
+  }
+}
+#endif
+
+/*! Update status bar */
+static int
+update_status(void)
+{
+#ifdef _3DS
+  console_set_status("\n" GREEN STATUS_STRING " "
+                     CYAN "%s:%u" RESET,
+                     inet_ntoa(serv_addr.sin_addr),
+                     ntohs(serv_addr.sin_port));
+  update_free_space();
+#else
+  char      hostname[128];
+  socklen_t addrlen = sizeof(serv_addr);
+  int       rc;
+
+  rc = getsockname(listenfd, (struct sockaddr*)&serv_addr, &addrlen);
+  if(rc != 0)
+  {
+    console_print(RED "getsockname: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+
+  rc = gethostname(hostname, sizeof(hostname));
+  if(rc != 0)
+  {
+    console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+
+  console_set_status(GREEN STATUS_STRING " "
+                     YELLOW "IP:"   CYAN "%s "
+                     YELLOW "Port:" CYAN "%u"
+                     RESET,
+                     hostname,
+                     ntohs(serv_addr.sin_port));
+#endif
+
+  return 0;
+}
+
 /*! initialize ftp subsystem */
 int
 ftp_init(void)
@@ -1526,47 +1619,19 @@ ftp_init(void)
   }
 
   /* print server address */
-#ifdef _3DS
-  console_set_status("\n" GREEN STATUS_STRING " "
-                     YELLOW "IP:"   CYAN "%s "
-                     YELLOW "Port:" CYAN "%u"
-                     RESET,
-                     inet_ntoa(serv_addr.sin_addr),
-                     ntohs(serv_addr.sin_port));
-#else
+  rc = update_status();
+  if(rc != 0)
   {
-    char      hostname[128];
-    socklen_t addrlen = sizeof(serv_addr);
-    rc = getsockname(listenfd, (struct sockaddr*)&serv_addr, &addrlen);
-    if(rc != 0)
-    {
-      console_print(RED "getsockname: %d %s\n" RESET, errno, strerror(errno));
-      ftp_exit();
-      return -1;
-    }
-
-    rc = gethostname(hostname, sizeof(hostname));
-    if(rc != 0)
-    {
-      console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
-      ftp_exit();
-      return -1;
-    }
-
-    console_set_status(GREEN STATUS_STRING " "
-                       YELLOW "IP:"   CYAN "%s "
-                       YELLOW "Port:" CYAN "%u"
-                       RESET,
-                       hostname,
-                       ntohs(serv_addr.sin_port));
+    ftp_exit();
+    return -1;
   }
-#endif
 
   return 0;
 
 #ifdef _3DS
 soc_fail:
   free(SOCU_buffer);
+  SOCU_buffer = NULL;
 
 memalign_fail:
 #ifdef ENABLE_LOGGING
@@ -1577,7 +1642,6 @@ ftruncate_fail:
 log_fail:
 #endif
   return -1;
-
 #endif
 }
 
@@ -1601,10 +1665,14 @@ ftp_exit(void)
   /* deinitialize SOC service */
   console_render();
   console_print(CYAN "Waiting for socExit()...\n" RESET);
-  ret = socExit();
-  if(ret != 0)
-    console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
-  free(SOCU_buffer);
+
+  if(SOCU_buffer != NULL)
+  {
+    ret = socExit();
+    if(ret != 0)
+      console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
+    free(SOCU_buffer);
+  }
 
 #ifdef ENABLE_LOGGING
   /* close log file */
@@ -1924,7 +1992,7 @@ list_transfer(ftp_session_t *session)
         /* copy to the session buffer to send */
         session->buffersize =
             sprintf(session->buffer,
-                    "%crwxrwxrwx 1 3DS 3DS %lld ",
+                    "%c%c%c%c%c%c%c%c%c%c 1 3DS 3DS %lld ",
                     S_ISREG(st.st_mode)  ? '-' :
                     S_ISDIR(st.st_mode)  ? 'd' :
                     S_ISLNK(st.st_mode)  ? 'l' :
@@ -1932,6 +2000,15 @@ list_transfer(ftp_session_t *session)
                     S_ISBLK(st.st_mode)  ? 'b' :
                     S_ISFIFO(st.st_mode) ? 'p' :
                     S_ISSOCK(st.st_mode) ? 's' : '?',
+                    st.st_mode & S_IRUSR ? 'r' : '-',
+                    st.st_mode & S_IWUSR ? 'w' : '-',
+                    st.st_mode & S_IXUSR ? 'x' : '-',
+                    st.st_mode & S_IRGRP ? 'r' : '-',
+                    st.st_mode & S_IWGRP ? 'w' : '-',
+                    st.st_mode & S_IXGRP ? 'x' : '-',
+                    st.st_mode & S_IROTH ? 'r' : '-',
+                    st.st_mode & S_IWOTH ? 'w' : '-',
+                    st.st_mode & S_IXOTH ? 'x' : '-',
                     (signed long long)st.st_size);
 
         t_mtime = mtime;
@@ -2558,6 +2635,7 @@ FTP_DECLARE(DELE)
     return ftp_send_response(session, 550, "failed to delete file\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -2708,6 +2786,7 @@ FTP_DECLARE(MKD)
     return ftp_send_response(session, 550, "failed to create directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -3183,6 +3262,7 @@ FTP_DECLARE(RMD)
     return ftp_send_response(session, 550, "failed to delete directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -3265,6 +3345,7 @@ FTP_DECLARE(RNTO)
     return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
