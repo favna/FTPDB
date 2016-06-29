@@ -75,6 +75,7 @@ FTP_DECLARE(RETR);
 FTP_DECLARE(RMD);
 FTP_DECLARE(RNFR);
 FTP_DECLARE(RNTO);
+FTP_DECLARE(SIZE);
 FTP_DECLARE(STAT);
 FTP_DECLARE(STOR);
 FTP_DECLARE(STOU);
@@ -180,6 +181,7 @@ static ftp_command_t ftp_commands[] =
   FTP_COMMAND(RMD),
   FTP_COMMAND(RNFR),
   FTP_COMMAND(RNTO),
+  FTP_COMMAND(SIZE),
   FTP_COMMAND(STAT),
   FTP_COMMAND(STOR),
   FTP_COMMAND(STOU),
@@ -196,9 +198,7 @@ static ftp_command_t ftp_commands[] =
 /*! number of ftp commands */
 static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[0]);
 
-#ifdef _3DS
 static void update_free_space(void);
-#endif
 
 /*! compare ftp command descriptors
  *
@@ -537,6 +537,8 @@ ftp_session_open_file_write(ftp_session_t *session,
     console_print(RED "fopen '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
+
+  update_free_space();
 
   /* it's okay if this fails */
   errno = 0;
@@ -1042,25 +1044,33 @@ ftp_session_connect(ftp_session_t *session)
     return -1;
   }
 
-  /* connect to peer */
-  rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
-               sizeof(session->peer_addr));
-  if(rc != 0)
-  {
-    console_print(RED "connect: %d %s\n" RESET, errno, strerror(errno));
-    ftp_closesocket(session->data_fd, false);
-    session->data_fd = -1;
-    return -1;
-  }
-
   /* set socket to non-blocking */
   rc = ftp_set_socket_nonblocking(session->data_fd);
   if(rc != 0)
     return -1;
 
-  console_print(CYAN "connected to %s:%u\n" RESET,
-                inet_ntoa(session->peer_addr.sin_addr),
-                ntohs(session->peer_addr.sin_port));
+  /* connect to peer */
+  rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
+               sizeof(session->peer_addr));
+  if(rc != 0)
+  {
+    if(errno != EINPROGRESS)
+    {
+      console_print(RED "connect: %d %s\n" RESET, errno, strerror(errno));
+      ftp_closesocket(session->data_fd, false);
+      session->data_fd = -1;
+      return -1;
+    }
+  }
+  else
+  {
+    console_print(CYAN "connected to %s:%u\n" RESET,
+                  inet_ntoa(session->peer_addr.sin_addr),
+                  ntohs(session->peer_addr.sin_port));
+
+    ftp_session_set_state(session, DATA_TRANSFER_STATE, CLOSE_PASV);
+    ftp_send_response(session, 150, "Ready\r\n");
+  }
 
   return 0;
 }
@@ -1243,6 +1253,8 @@ ftp_session_read_command(ftp_session_t *session,
         /* send args (if any) */
         if(*args != 0)
         {
+          ftp_send_response_buffer(session, " ", 1);
+
           len = strlen(args);
           buffer = encode_path(args, &len, false);
           if(buffer != NULL)
@@ -1312,9 +1324,18 @@ ftp_session_poll(ftp_session_t *session)
       break;
 
     case DATA_CONNECT_STATE:
-      /* we are waiting for a PASV connection */
-      pollinfo[1].fd      = session->pasv_fd;
-      pollinfo[1].events  = POLLIN;
+      if(session->flags & SESSION_PASV)
+      {
+        /* we are waiting for a PASV connection */
+        pollinfo[1].fd     = session->pasv_fd;
+        pollinfo[1].events = POLLIN;
+      }
+      else
+      {
+        /* we are waiting to complete a PORT connection */
+        pollinfo[1].fd     = session->data_fd;
+        pollinfo[1].events = POLLOUT;
+      }
       pollinfo[1].revents = 0;
       nfds = 2;
       break;
@@ -1378,6 +1399,16 @@ ftp_session_poll(ftp_session_t *session)
             if(ftp_session_accept(session) != 0)
               ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
           }
+          else if(pollinfo[1].revents & POLLOUT)
+          {
+
+            console_print(CYAN "connected to %s:%u\n" RESET,
+                          inet_ntoa(session->peer_addr.sin_addr),
+                          ntohs(session->peer_addr.sin_port));
+
+            ftp_session_set_state(session, DATA_TRANSFER_STATE, CLOSE_PASV);
+            ftp_send_response(session, 150, "Ready\r\n");
+          }
           break;
 
         case DATA_TRANSFER_STATE:
@@ -1405,11 +1436,11 @@ ftp_session_poll(ftp_session_t *session)
   return ftp_session_destroy(session);
 }
 
-#ifdef _3DS
 /* Update free space in status bar */
 static void
 update_free_space(void)
 {
+#ifdef _3DS
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
@@ -1448,8 +1479,8 @@ update_free_space(void)
 
     console_set_status("\x1b[0;%dH" GREEN "%s", 50-len, buffer);
   }
-}
 #endif
+}
 
 /*! Update status bar */
 static int
@@ -2228,55 +2259,38 @@ ftp_xfer_file(ftp_session_t    *session,
     return ftp_send_response(session, 450, "failed to open file\r\n");
   }
 
-  if(session->flags & SESSION_PORT)
+  if(session->flags & (SESSION_PORT|SESSION_PASV))
   {
-    /* connect to the client */
-    ftp_session_set_state(session, DATA_TRANSFER_STATE, CLOSE_PASV);
-    rc = ftp_session_connect(session);
-    if(rc != 0)
-    {
-      /* error connecting */
-      ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-      return ftp_send_response(session, 425, "can't open data connection\r\n");
-    }
-
-    /* set up the transfer */
-    session->flags &= ~(SESSION_RECV|SESSION_SEND);
-    if(mode == XFER_FILE_RETR)
-    {
-      session->flags   |= SESSION_SEND;
-      session->transfer = retrieve_transfer;
-    }
-    else
-    {
-      session->flags   |= SESSION_RECV;
-      session->transfer = store_transfer;
-    }
-
-    session->bufferpos  = 0;
-    session->buffersize = 0;
-
-    return ftp_send_response(session, 150, "Ready\r\n");
-  }
-  else if(session->flags & SESSION_PASV)
-  {
-    /* set up the transfer */
-    session->flags &= ~(SESSION_RECV|SESSION_SEND);
-    if(mode == XFER_FILE_RETR)
-    {
-      session->flags   |= SESSION_SEND;
-      session->transfer = retrieve_transfer;
-    }
-    else
-    {
-      session->flags   |= SESSION_RECV;
-      session->transfer = store_transfer;
-    }
-
-    session->bufferpos  = 0;
-    session->buffersize = 0;
-
     ftp_session_set_state(session, DATA_CONNECT_STATE, CLOSE_DATA);
+
+    if(session->flags & SESSION_PORT)
+    {
+      /* setup connection */
+      rc = ftp_session_connect(session);
+      if(rc != 0)
+      {
+        /* error connecting */
+        ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
+        return ftp_send_response(session, 425, "can't open data connection\r\n");
+      }
+    }
+
+    /* set up the transfer */
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    if(mode == XFER_FILE_RETR)
+    {
+      session->flags   |= SESSION_SEND;
+      session->transfer = retrieve_transfer;
+    }
+    else
+    {
+      session->flags   |= SESSION_RECV;
+      session->transfer = store_transfer;
+    }
+
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
     return 0;
   }
 
@@ -2418,40 +2432,22 @@ ftp_xfer_dir(ftp_session_t   *session,
     strcpy(session->lwd, session->cwd);
   }
 
-  if(session->flags & SESSION_PORT)
+  if(session->flags & (SESSION_PORT|SESSION_PASV))
   {
-    /* connect to the client */
-    ftp_session_set_state(session, DATA_TRANSFER_STATE, CLOSE_PASV);
-    rc = ftp_session_connect(session);
-    if(rc != 0)
-    {
-      ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-      return ftp_send_response(session, 425, "can't open data connection\r\n");
-    }
-
-    /* set up the transfer */
-    if(mode == XFER_DIR_NLST)
-      session->flags |= SESSION_NLST;
-    else if(mode != XFER_DIR_LIST)
-    {
-      ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-      return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
-    }
-
-    return ftp_send_response(session, 150, "Ready\r\n");
-  }
-  else if(session->flags & SESSION_PASV)
-  {
-    /* set up the transfer */
-    if(mode == XFER_DIR_NLST)
-      session->flags |= SESSION_NLST;
-    else if(mode != XFER_DIR_LIST)
-    {
-      ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-      return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
-    }
-
     ftp_session_set_state(session, DATA_CONNECT_STATE, CLOSE_DATA);
+
+    if(session->flags & SESSION_PORT)
+    {
+      /* setup connection */
+      rc = ftp_session_connect(session);
+      if(rc != 0)
+      {
+        /* error connecting */
+        ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
+        return ftp_send_response(session, 425, "can't open data connection\r\n");
+      }
+    }
+
     return 0;
   }
   else if(mode == XFER_DIR_STAT)
@@ -2657,6 +2653,8 @@ FTP_DECLARE(FEAT)
   /* list our features */
   return ftp_send_response(session, -211, "\r\n"
                                           " MDTM\r\n"
+                                          " PASV\r\n"
+                                          " SIZE\r\n"
                                           " UTF8\r\n"
                                           "\r\n"
                                           "211 End\r\n");
@@ -3347,6 +3345,36 @@ FTP_DECLARE(RNTO)
 
   update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
+}
+
+/*! @fn static int SIZE(ftp_session_t *session, const char *args)
+ *
+ *  @brief get file size
+ *
+ *  @param[in] session ftp session
+ *  @param[in] args    arguments
+ *
+ *  @returns error
+ */
+FTP_DECLARE(SIZE)
+{
+  int         rc;
+  struct stat st;
+
+  console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
+
+  ftp_session_set_state(session, COMMAND_STATE, 0);
+
+  /* build the path to stat */
+  if(build_path(session, session->cwd, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
+
+  rc = stat(session->buffer, &st);
+  if(rc != 0 || !S_ISREG(st.st_mode))
+    return ftp_send_response(session, 550, "Could not get file size.\r\n");
+
+  return ftp_send_response(session, 213, "%" PRIu64 "\r\n",
+                           (uint64_t)st.st_size);
 }
 
 /*! @fn static int STAT(ftp_session_t *session, const char *args)
