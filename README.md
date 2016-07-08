@@ -9,7 +9,7 @@ Features
 Latest Builds
 -------------
 
-CIA: [clickh ere](https://github.com/Favna/FTPDB/releases/download/1.2/FTPDB.cia)
+CIA: [click here](https://github.com/Favna/FTPDB/releases/download/1.2/FTPDB.cia)
 
 3DSX: [click here](https://github.com/Favna/FTPDB/releases/download/1.2/FTPDB-3dsx.zip)
 
