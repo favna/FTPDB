@@ -1,7 +1,19 @@
+FTPDB
+====
+
 Features
 --------
 - Works well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
+
+Latest Builds
+-------------
+
+CIA: 
+
+3DSX: 
+
+CIA QR Code
 
 Building
 ------------------
@@ -42,6 +54,7 @@ Supported Commands
 - RMD
 - RNFR
 - RNTO
+- SIZE
 - STAT
 - STOR
 - STRU (no-op)
@@ -53,3 +66,8 @@ Supported Commands
 - XMKD
 - XPWD
 - XRMD
+
+Planned Commands
+----------------
+
+- STOU
