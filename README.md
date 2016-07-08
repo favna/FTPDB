@@ -9,11 +9,13 @@ Features
 Latest Builds
 -------------
 
-CIA: 
+CIA: [clickh ere](https://github.com/Favna/FTPDB/releases/download/1.2/FTPDB.cia)
 
-3DSX: 
+3DSX: [click here](https://github.com/Favna/FTPDB/releases/download/1.2/FTPDB-3dsx.zip)
 
 CIA QR Code
+
+![QR](https://raw.githubusercontent.com/Favna/FTPDB/master/meta/QRv1.2.png)
 
 Building
 ------------------
