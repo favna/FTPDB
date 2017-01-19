@@ -53,7 +53,7 @@ ifeq ($(TARGET),3DS)
     MEMORY_TYPE := Application
     SYSTEM_MODE := 64MB
     SYSTEM_MODE_EXT := 124MB
-    CPU_SPEED := 268MHz
+    CPU_SPEED := 804MHz
     ENABLE_L2_CACHE := true
 
     ICON_FLAGS := --flags visible,ratingrequired,recordusage --cero 153 --esrb 153 --usk 153 --pegigen 153 --pegiptr 153 --pegibbfc 153 --cob 153 --grb 153 --cgsrr 153
