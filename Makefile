@@ -45,7 +45,7 @@ ifeq ($(TARGET),3DS)
     #LIBRARIES +=
 
     PRODUCT_CODE := HBL-FTPDB
-    UNIQUE_ID := 0xF73DB
+    UNIQUE_ID := 0xF73D
 
     CATEGORY := Application
     USE_ON_SD := true
