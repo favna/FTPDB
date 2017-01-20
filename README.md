@@ -29,8 +29,13 @@ This will create the `/output` folder with all required files.
 ##Recommended Clients
 
 Windows: [FileZilla](https://filezilla-project.org/download.php?type=client)
+
 Linux: [FileZilla](https://filezilla-project.org/download.php?type=client)
+
 MacOS: [FileZilla](https://filezilla-project.org/download.php?type=client)
+
 iOS non jailbroken: [FTPManager](https://itunes.apple.com/us/app/ftpmanager-ftp-sftp-ftps-client/id525959186?mt=8)
+
 iOS Jailbroken: [Filza](http://moreinfo.thebigboss.org/moreinfo/depiction.php?file=filzafilemanagerDp)
+
 Android: [Turbo FTP Client & SFTP Client](https://play.google.com/store/apps/details?id=turbo.client&hl=en)
