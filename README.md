@@ -3,20 +3,20 @@
 
 ##Features
 
---------
+
 - Works well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 
 ##Latest Builds
 
--------------
+
 
 CIA: [click here](https://github.com/Favna/FTPDB/releases/download/1.4.1/FTPDB.cia)
 
 3DSX: [click here](https://github.com/Favna/FTPDB/releases/download/1.4.1/FTPDB.zip)
 
 ##Building
-------------------
+
 
 Install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). 
 
